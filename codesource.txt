@@ -1,0 +1,288 @@
+"""
+# améliorez cette liste si besoin
+
+Ce que j'ai fait, et encore à faire:( \ = fini sans problème, \? = fini mais pas sûr, \! = fini mais pas encore bien fait, !! = fait en ce moment, \: : à faire)
+-préparer la fenêtre de jeu
+-charger une image du joueur \
+    * 'right':image droite
+    * 'left:image gauche
+    * 'stand':image debout
+    * current_image = 'stand'
+-faire l'animation de ce joueur: \
+    * droite = image normal
+    * gauche = image renveser de droite
+    * idle = animation quand le joueur ne bouge pas
+-faire les vies, scores, objets,...
+    * mettre des objets dans la carte \
+    * faire les collisions avec ces objets:
+        ¤ definir une variable de l'anc. pos. qui va sauvegarder la position \
+        ¤ def. une fonction qui va resauvegarder la nouvelle position \
+        ¤ si le joueur a une collision avec un solide il retourne à son ancienne position \
+        ¤ collision avec les pieds et non tout le corps \
+            if pygame.sprite.collide_rect(player.feet, bloc):
+                player.move_back()
+        ¤ collision avec le joueur (pas arrivé)
+        ¤ faire une mini-carte d'essai \
+        ¤ redimmensionner le bloc à la taille d'un tile \:
+        ¤ faire une classe d'objets qu'on peut bouger 
+    * mettre le score et les fonctions avec
+    * mettre les vies
+-penser à des attaques(penser à des simples), puis essayer de le faire en code
+    *attaques proches : coup d'épée
+    *attaques en lignes : lance
+-faire des ennemis(mouvement auto, collision avec pg, perte de vies, ...)
+-penser à des attaques plus compliqués(comme les potions que l'on boit)
+-faire d'autres joueurs
+-créer une histoire et une carte
+    * insérer les couches
+-améliorez le jeu
+
+"""
+# importer les modules
+import pytmx.util_pygame
+import pygame
+import pyscroll
+
+# variable pour l'écran
+window_x, window_y = 640, 480 # tu peux changer celui devant la virgule : sa longueur, et derrière : sa largeur
+SCREEN = pygame.Rect(0, 0, window_x, window_y)
+back = pygame.Surface(SCREEN.size)
+FPS = 50
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self,personnage, pos_x, pos_y):
+        super().__init__()
+        
+        # liste des images
+        self.idle = [
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_idle_anim\knight_m_idle_1.png"),
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_idle_anim\knight_m_idle_2.png"),
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_idle_anim\knight_m_idle_3.png"),
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_idle_anim\knight_m_idle_4.png")
+        ]
+
+        self.right = [
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_run_anim\knight_m_run_1.png"),
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_run_anim\knight_m_run_2.png"),
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_run_anim\knight_m_run_3.png"),
+            pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_run_anim\knight_m_run_4.png")
+        ]
+
+        self.left = [ pygame.transform.flip(image, 1, 0) for image in self.right ]
+
+        self.hit = [pygame.image.load(f"images\Heroes\Knight\Knight_M\knight_m_hit_anim\knight_m_hit_1.png")]
+
+        self.current_image = 0
+        self.image = self.right[self.current_image]
+        self.direction = "right"
+        self.is_right = True
+
+        # updating
+        self.position = [pos_x, pos_y]
+        self.old_position = self.position.copy()
+        self.rect = self.image.get_rect()
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
+
+        self.feet = pygame.Rect(0, 0, self.width, 8)
+
+    def update(self):
+        
+        self.rect.topleft = self.position
+        self.feet.midbottom = self.rect.midbottom
+
+    def animate(self, animation, spd_img):
+        self.current_image += spd_img
+        if self.current_image >= len(animation):
+            self.current_image = 0
+
+        self.image = animation[int(self.current_image)]
+
+    def move_left(self, speed):
+        if self.direction != "left":
+            self.image = self.left[0]
+            self.direction = "left"
+            self.is_right = False
+
+        self.position[0] -= speed
+
+    def move_right(self, speed):
+        if self.direction != "right":
+            self.image = self.right[0]
+            self.direction = "right"
+            self.is_right = True
+            
+        self.position[0] += speed
+
+    def move_up(self, speed):
+        self.direction = "up"
+        self.position[1] -= speed * 3 / 4
+
+    def move_down(self, speed):
+        self.direction = "down"
+        self.position[1] += speed * 3 / 4
+
+    def save_location(self): self.old_position = self.position.copy()
+
+    def move_back(self):
+        self.position = self.old_position
+        self.rect.topleft = self.position
+        self.feet.midbottom = self.rect.midbottom
+
+    def idle_animation(self):
+        if self.is_right:
+            self.animate(self.idle, 0.1)
+        else:
+            self.animate([pygame.transform.flip(image, 1, 0) for image in self.idle], 0.1)
+
+class Ennemy(pygame.sprite.Sprite):
+    def __init__(self, image, pos_x, pos_y, life):
+        super().__init__()
+        self.idle = [
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_idle_anim\demon_big_idle_anim_f1.png"),
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_idle_anim\demon_big_idle_anim_f1.png"),
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_idle_anim\demon_big_idle_anim_f1.png"),
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_idle_anim\demon_big_idle_anim_f1.png")
+            ]
+        self.run = [
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_run_anim\demon_big_run_anim_f1.png"),
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_run_anim\demon_big_run_anim_f1.png"),
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_run_anim\demon_big_run_anim_f1.png"),
+            pygame.image.load(f"images\Demons\Demon_Big\demon_big_run_anim\demon_big_run_anim_f1.png")
+        ]
+
+        self.current_image = 0
+        self.image = self.idle[self.current_image]
+        self.position = [pos_x, pos_y]
+        self.rect = self.image.get_rect()
+        self.rect.topleft = self.position
+
+    def update(self):
+        self.rect.topleft = self.position
+
+    def animate(self, animation, speed = 0.2):
+        self.current_image += speed
+        if self.current_image >= len(animation):
+            self.current_image = 0
+
+        self.image = animation[int(self.current_image)]
+
+    def idle_animation(self):
+        self.animate(self.idle, 0.1)
+
+
+def handle_input(player, speed, img_speed, controls):    
+    pressed = pygame.key.get_pressed()
+
+    if pressed[controls[0]] and player.position[1] > 0: # haut
+        player.move_up(speed)
+        
+        if pressed[controls[2]]:
+            pass
+        elif pressed[controls[3]]:
+            pass
+        else:
+            if player.is_right:        
+                animate(player.right,img_speed)
+            else:
+                animate(player.left,img_speed)
+
+    if pressed[controls[1]] and player.position[1] < SCREEN.height - player.height : # bas
+        player.move_down(speed)
+
+        if pressed[controls[2]]:
+            pass
+        elif pressed[controls[3]]:
+            pass
+        else:
+            if player.is_right:        
+                animate(player.right,img_speed)
+            else:
+                animate(player.left,img_speed)
+    
+    if pressed[controls[2]] and player.position[0] > 0: # gauche
+        player.move_left(speed)
+
+        animate(player.left, img_speed)
+    
+    if pressed[controls[3]] and player.position[0] < SCREEN.width - player.width: # droite
+        player.move_right(speed)
+
+        animate(player.right, img_speed)
+    
+    if sum([pressed[ctrl] for ctrl in controls]) == 0:
+        player.idle_animation()
+
+def update():
+    group.update()
+            
+        # for block in blocks.sprites():
+        #     if player.feet.colliderect(block):
+        #         if block.__class__ == "mettre la classe":
+        #             player.move_back()
+        
+    if player1.feet.collidelist(walls) > -1 :
+        player1.move_back()
+
+def clear():
+    group.clear(screen, back)
+    blocks.clear(screen, back)
+
+def draw():
+    group.draw(screen)
+    blocks.draw(screen)
+
+def save_location():
+    player1.save_location()
+    
+
+pygame.init()
+clock = pygame.time.Clock()
+
+screen = pygame.display.set_mode(SCREEN.size)
+pygame.display.set_caption("Andy's game")
+
+tmx_data = pytmx.util_pygame.load_pygame("Maps\level1.tmx")
+map_data = pyscroll.data.TiledMapData(tmx_data)
+map_layer = pyscroll.orthographic.BufferedRenderer(map_data, screen.get_size())
+map_layer.zoom = 2
+
+player1_pos = tmx_data.get_object_by_name("player")
+
+group = pyscroll.PyscrollGroup(map_layer = map_layer, default_layer = 2)
+blocks = pygame.sprite.Group()
+
+player1 = Player("knight", player1_pos.x, player1_pos.y)
+ennemy1 = Ennemy("big_demon", 200, 400, 100)
+
+group.add(player1)
+group.add(ennemy1)
+walls = []
+
+for obj in tmx_data.objects:
+    if obj.type == "collision":
+        walls.append(pygame.Rect(obj.x, obj.y, obj.width, obj.height))
+
+# controlles = [0]:haut; [1]:bas; [2]:gauche; [3]:droite
+player1_controls = [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]
+player2_controls = [pygame.K_z, pygame.K_s, pygame.K_q, pygame.K_d]
+
+run = True
+
+while run:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            run = False
+
+    clear()
+    draw()
+    handle_input(player1, 2, 0.2, player1_controls)
+    update()
+    save_location()
+    
+    ennemy1.idle_animation()
+    group.center(player1.rect)
+    pygame.display.flip()
+    clock.tick(FPS)
+
+pygame.quit()
