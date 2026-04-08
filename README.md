@@ -2,10 +2,13 @@
 
 This is the first game I've made. It was done in Python3 using the Pygame module.
 
+## About this game
+
+This game was made around 2022. I did it while following a video from @GravenilvecTV  [Graven Pygamon game](https://youtu.be/ooITOxbYVTo?si=bjXNkyU0hFztwbVJ)
+
 ## Resources
 
 ### Tilesets
 
-I used the free tileset of 0x72 on Itch.io : [https://0x72.itch.io/dungeontileset-ii]
+I used the free tileset of 0x72 on Itch.io : [Dungeon TileSet - Itch.io](https://0x72.itch.io/dungeontileset-ii)
 
-[https://0x72.itch.io/dungeontileset-ii]: Here is a link to the site
